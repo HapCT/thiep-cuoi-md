@@ -1,5 +1,113 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './App.css';
+
+// --- COMPONENT CÀO ẢNH ---
+const ScratchOffImage = ({ src }) => {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    
+    // Cài đặt kích thước canvas trùng với CSS container (140x200)
+    canvas.width = 140;
+    canvas.height = 200;
+    
+    // Vẽ lớp phủ màu bạc (phần để cào)
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = '#cbd5e1'; // Màu xám bạc
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Vẽ chữ gợi ý lên lớp bạc
+    ctx.font = "bold 16px 'Playfair Display', serif";
+    ctx.fillStyle = "#475569";
+    ctx.textAlign = "center";
+    ctx.fillText("Cào thử đi! 🪙", canvas.width / 2, canvas.height / 2);
+
+    let isDrawing = false;
+
+    // Lấy tọa độ chuột hoặc ngón tay
+    const getMousePos = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+      };
+    };
+
+    const startDrawing = (e) => {
+      isDrawing = true;
+      scratch(e);
+    };
+
+    const stopDrawing = () => {
+      isDrawing = false;
+    };
+
+    const scratch = (e) => {
+      if (!isDrawing) return;
+      if (e.cancelable) e.preventDefault(); // Ngăn cuộn trang khi đang cào trên điện thoại
+      
+      const { x, y } = getMousePos(e);
+      
+      // Xóa lớp bạc đi (biến pixel thành trong suốt) để lộ ảnh bên dưới
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath();
+      ctx.arc(x, y, 15, 0, Math.PI * 2); // Bán kính cục tẩy = 15px
+      ctx.fill();
+    };
+
+    // Chuột
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousemove', scratch);
+    canvas.addEventListener('mouseup', stopDrawing);
+    canvas.addEventListener('mouseleave', stopDrawing);
+    
+    // Cảm ứng (Điện thoại)
+    canvas.addEventListener('touchstart', startDrawing, { passive: false });
+    canvas.addEventListener('touchmove', scratch, { passive: false });
+    canvas.addEventListener('touchend', stopDrawing);
+
+    return () => {
+      canvas.removeEventListener('mousedown', startDrawing);
+      canvas.removeEventListener('mousemove', scratch);
+      canvas.removeEventListener('mouseup', stopDrawing);
+      canvas.removeEventListener('mouseleave', stopDrawing);
+      canvas.removeEventListener('touchstart', startDrawing);
+      canvas.removeEventListener('touchmove', scratch);
+      canvas.removeEventListener('touchend', stopDrawing);
+    };
+  }, [src]); 
+
+  return (
+    <>
+      {/* Lớp ảnh bên dưới */}
+      <img 
+        src={src} 
+        alt="Couple" 
+        className="template-image" 
+        onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=400'; }}
+      />
+      {/* Lớp cào bên trên */}
+      <canvas 
+        ref={canvasRef} 
+        style={{ 
+          position: 'absolute', 
+          top: 0, left: 0, 
+          zIndex: 10,
+          cursor: 'crosshair',
+          width: '100%',
+          height: '100%',
+          touchAction: 'none'
+        }} 
+      />
+    </>
+  );
+};
+
 
 // --- COMPONENT THIỆP MỜI VÀ HIỆU ỨNG MỞ BAO THƯ ---
 const EnvelopeCard = ({ data, interactive = true }) => {
@@ -39,12 +147,16 @@ const EnvelopeCard = ({ data, interactive = true }) => {
         <p className="template-subtitle">{data.subtitle}</p>
         
         <div className="template-image-container">
-          <img 
-            src={data.image} 
-            alt="Couple" 
-            className="template-image" 
-            onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=400'; }}
-          />
+          {data.effect === 'scratch' ? (
+            <ScratchOffImage src={data.image} />
+          ) : (
+            <img 
+              src={data.image} 
+              alt="Couple" 
+              className="template-image" 
+              onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=400'; }}
+            />
+          )}
         </div>
         
         <h1 className="template-names">{data.names}</h1>
@@ -75,7 +187,8 @@ function App() {
     title: 'This is the most beautiful\nSAVE THE DATE',
     subtitle: "I've seen in my life 🤩💍",
     image: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=400',
-    names: 'Anh & Em'
+    names: 'Anh & Em',
+    effect: 'normal' // Giá trị mặc định
   });
 
   useEffect(() => {
@@ -124,6 +237,14 @@ function App() {
         <h1>Wedding Builder 💌</h1>
         <p>Giao diện có hiệu ứng bao thư! Chỉnh sửa và xuất link nhé.</p>
         
+        <div className="input-group">
+          <label>Hiệu ứng Ảnh</label>
+          <select name="effect" value={templateData.effect} onChange={handleInputChange}>
+            <option value="normal">Bình thường (Hiện sẵn ảnh)</option>
+            <option value="scratch">Thẻ cào (Cào lớp bạc để xem ảnh)</option>
+          </select>
+        </div>
+
         <div className="input-group">
           <label>Tiêu đề</label>
           <input type="text" name="title" value={templateData.title} onChange={handleInputChange} />
