@@ -4,8 +4,11 @@ import './App.css';
 // --- COMPONENT CÀO ẢNH ---
 const ScratchOffImage = ({ src }) => {
   const canvasRef = useRef(null);
+  const [isRevealed, setIsRevealed] = useState(false);
 
   useEffect(() => {
+    if (isRevealed) return; // Không cần khởi tạo lại nếu đã hiện hẳn
+
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -26,6 +29,7 @@ const ScratchOffImage = ({ src }) => {
     ctx.fillText("Cào thử đi! 🪙", canvas.width / 2, canvas.height / 2);
 
     let isDrawing = false;
+    let scratchCount = 0; // Bộ đếm để không check pixel quá nhiều gây giật
 
     // Lấy tọa độ chuột hoặc ngón tay
     const getMousePos = (e) => {
@@ -38,6 +42,25 @@ const ScratchOffImage = ({ src }) => {
       };
     };
 
+    // Kiểm tra xem đã cào được bao nhiêu %
+    const checkReveal = () => {
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const pixels = imageData.data;
+      let transparentPixels = 0;
+      
+      // Bước nhảy 4 tương ứng với 4 giá trị R, G, B, A của mỗi pixel
+      for (let i = 0; i < pixels.length; i += 4) {
+        if (pixels[i + 3] === 0) { // Alpha = 0 (trong suốt hoàn toàn)
+          transparentPixels++;
+        }
+      }
+      
+      const percentage = (transparentPixels / (canvas.width * canvas.height)) * 100;
+      if (percentage > 40) { // Nếu cào được hơn 40%, cho bay màu toàn bộ
+        setIsRevealed(true);
+      }
+    };
+
     const startDrawing = (e) => {
       isDrawing = true;
       scratch(e);
@@ -45,6 +68,7 @@ const ScratchOffImage = ({ src }) => {
 
     const stopDrawing = () => {
       isDrawing = false;
+      checkReveal(); // Kiểm tra khi vừa nhấc tay lên
     };
 
     const scratch = (e) => {
@@ -58,6 +82,12 @@ const ScratchOffImage = ({ src }) => {
       ctx.beginPath();
       ctx.arc(x, y, 15, 0, Math.PI * 2); // Bán kính cục tẩy = 15px
       ctx.fill();
+
+      // Chỉ check tiến độ mỗi 20 lần di chuyển để tối ưu hiệu năng
+      scratchCount++;
+      if (scratchCount % 20 === 0) {
+        checkReveal();
+      }
     };
 
     // Chuột
@@ -80,7 +110,7 @@ const ScratchOffImage = ({ src }) => {
       canvas.removeEventListener('touchmove', scratch);
       canvas.removeEventListener('touchend', stopDrawing);
     };
-  }, [src]); 
+  }, [src, isRevealed]); 
 
   return (
     <>
@@ -101,7 +131,10 @@ const ScratchOffImage = ({ src }) => {
           cursor: 'crosshair',
           width: '100%',
           height: '100%',
-          touchAction: 'none'
+          touchAction: 'none',
+          opacity: isRevealed ? 0 : 1, // Khi cào đủ 40%, cho mờ đi toàn bộ
+          transition: 'opacity 0.8s ease-in-out', // Hiệu ứng mờ dần trong 0.8 giây
+          pointerEvents: isRevealed ? 'none' : 'auto' // Đã mờ thì không cho cào nữa
         }} 
       />
     </>
