@@ -53,16 +53,19 @@
   color: #555;
 }
 
-.input-group input {
+.input-group input,
+.input-group select {
   padding: 12px;
   border: 1px solid #ddd;
   border-radius: 8px;
   font-size: 16px;
   transition: all 0.3s ease;
   width: 100%;
+  background-color: white;
 }
 
-.input-group input:focus {
+.input-group input:focus,
+.input-group select:focus {
   outline: none;
   border-color: #666;
   box-shadow: 0 0 0 2px rgba(0,0,0,0.1);
@@ -435,14 +438,3 @@
     transform: scale(0.7);
   }
 }
-
- . i n p u t - g r o u p   s e l e c t   { 
-     p a d d i n g :   1 2 p x ; 
-     b o r d e r :   1 p x   s o l i d   # d d d ; 
-     b o r d e r - r a d i u s :   8 p x ; 
-     f o n t - s i z e :   1 6 p x ; 
-     b a c k g r o u n d - c o l o r :   w h i t e ; 
-     w i d t h :   1 0 0 % ; 
- } 
-  
- 
